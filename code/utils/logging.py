@@ -2,7 +2,7 @@ import logging
 
 
 def get_default_logger(name: str, log_file: str) -> logging.Logger:
-    """create a Logger object
+    """creates a Logger object
 
     Args:
         name (str): logger name
