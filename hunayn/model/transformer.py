@@ -40,6 +40,8 @@ class Hunayn(nn.Module):
         self.decoder = TransformerDecoder(
             config.num_decoder_layers, config.d_model, config.d_ff, config.nhead, config.dropout)
 
+        self.generator = nn.Linear(config.d_model, config.tgt_vocab_size, False)
+
     def forward(self, src: th.Tensor, tgt: th.Tensor,
                 src_mask: Union[th.Tensor, th.BoolTensor] = None, tgt_mask: Union[th.Tensor, th.BoolTensor] = None) -> th.Tensor:
         """
@@ -62,4 +64,4 @@ class Hunayn(nn.Module):
         memory = self.encoder(src, src_mask)
 
         z = self.decoder(tgt, memory, tgt_mask, src_mask)
-        return z
+        return self.generator(z)
