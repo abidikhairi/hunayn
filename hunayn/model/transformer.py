@@ -19,6 +19,7 @@ class Hunayn(nn.Module):
         tgt_embedding (Embedding): Embedding layer for the target sequence.
         encoder (TransformerEncoder): Transformer Encoder module.
         decoder (TransformerDecoder): Transformer Decoder module.
+        generator (nn.Linear): Transformer Generator (LM Head).
 
     Example:
         ```python
@@ -56,7 +57,7 @@ class Hunayn(nn.Module):
                 Shape: (batch_size, tgt_sequence_length).
 
         Returns:
-            th.Tensor: Output tensor after passing through the Transformer model. Shape: (batch_size, tgt_sequence_length, d_model).
+            th.Tensor: Output tensor after passing through the Transformer model. Shape: (batch_size, tgt_sequence_length, tgt_vocab_size).
         """
         src = self.src_embedding(src)
         tgt = self.tgt_embedding(tgt)
