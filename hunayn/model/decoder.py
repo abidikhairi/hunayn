@@ -93,7 +93,7 @@ class DecoderLayer(nn.Module):
         tgt = tgt + z  # skip-connection (good when backpropagating gradients)
 
         tgt = self.cross_attn_norm(tgt)
-        z = self.cross_attn(src, src, tgt, attn_mask=src_mask,
+        z, _ = self.cross_attn(src, src, tgt, attn_mask=src_mask,
                               need_weights=False, is_causal=False)
         tgt = tgt + z
 
