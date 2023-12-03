@@ -5,6 +5,7 @@ import torch as th
 from torch import nn
 
 from hunayn.model.positional_encoding import PositionalEncoding
+from hunayn.utils.cloning import clones
 
 
 class DecoderLayer(nn.Module):
@@ -126,9 +127,7 @@ class TransformerDecoder(nn.Module):
     def __init__(self, num_layers: int, d_model: int, d_ff: int, nhead: int, dropout: float) -> None:
         super().__init__()
 
-        self.layers = nn.ModuleList([
-            DecoderLayer(d_model, d_ff, nhead, dropout) for _ in range(num_layers)
-        ])
+        self.layers = clones(DecoderLayer(d_model, d_ff, nhead, dropout), num_layers)
 
     def forward(self, tgt: th.Tensor, src: th.Tensor,
                 tgt_mask: Union[th.Tensor, th.BoolTensor] = None,
