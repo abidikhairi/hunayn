@@ -1,10 +1,15 @@
 """Seq2Seq Transformer"""
-from typing import Union
+from typing import Any, Dict, Union
+import pytorch_lightning as pl
+from pytorch_lightning.utilities.types import STEP_OUTPUT, OptimizerLRScheduler
 import torch as th
 from torch import nn
+from torch import optim
+from torch.optim import lr_scheduler
 
-from hunayn.config import TransformerConfig
+from hunayn.config import TransformerConfig, OptimizerConfig
 from hunayn.model import Embedding, TransformerEncoder, TransformerDecoder
+from hunayn.utils.optimizer import scheduler_fn
 
 
 class Hunayn(nn.Module):
@@ -28,6 +33,7 @@ class Hunayn(nn.Module):
         ```
 
     """
+
     def __init__(self, config: TransformerConfig) -> None:
         super().__init__()
 
@@ -41,7 +47,8 @@ class Hunayn(nn.Module):
         self.decoder = TransformerDecoder(
             config.num_decoder_layers, config.d_model, config.d_ff, config.nhead, config.dropout)
 
-        self.generator = nn.Linear(config.d_model, config.tgt_vocab_size, False)
+        self.generator = nn.Linear(
+            config.d_model, config.tgt_vocab_size, False)
 
     def forward(self, src: th.Tensor, tgt: th.Tensor,
                 src_mask: Union[th.Tensor, th.BoolTensor] = None, tgt_mask: Union[th.Tensor, th.BoolTensor] = None) -> th.Tensor:
@@ -66,3 +73,141 @@ class Hunayn(nn.Module):
 
         z = self.decoder(tgt, memory, tgt_mask, src_mask)
         return self.generator(z)
+
+
+class HunaynTrainer(pl.LightningModule):
+    """
+    LightningModule for training the Hunayn model.
+
+    Args:
+        model_config (TransformerConfig): Configuration for the Hunayn model.
+        optim_config (OptimizerConfig): Configuration for the optimizer.
+
+    Attributes:
+        model_config (TransformerConfig): Configuration for the Hunayn model.
+        optim_config (OptimizerConfig): Configuration for the optimizer.
+        model (Hunayn): Instance of the Hunayn model.
+        loss_fn (nn.CrossEntropyLoss): Cross-entropy loss function.
+
+    Example:
+        ```python
+        model_config = TransformerConfig(d_model=512, d_ff=2048, nhead=8, dropout=0.1, num_layers=6, src_vocab_size=10000, tgt_vocab_size=10000, src_padding_idx=0, tgt_padding_idx=0)
+        optim_config = OptimizerConfig(learning_rate=0.001, beta1=0.9, beta2=0.988, warmup_steps=2000, d_model=512)
+        trainer = HunaynTrainer(model_config=model_config, optim_config=optim_config)
+        ```
+
+    """
+    def __init__(self, model_config: TransformerConfig, optim_config: OptimizerConfig) -> None:
+        super().__init__()
+        self.model_config = model_config
+        self.optim_config = optim_config
+
+        self.save_hyperparameters()
+
+        self.model = Hunayn(self.model_config)
+        self.loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
+
+    def configure_optimizers(self) -> OptimizerLRScheduler:
+        """
+        Configure the optimizer and learning rate scheduler.
+
+        Returns:
+            Tuple[Optimizer, LRScheduler]: Optimizer and learning rate scheduler.
+
+        Example:
+            ```python
+            optimizer, scheduler = trainer.configure_optimizers()
+            ```
+        """
+        optimizer = optim.AdamW(
+            self.parameters(), lr=self.optim_config.learning_rate, betas=(self.optim_config.beta1, self.optim_config.beta2))
+        scheduler = th.optim.lr_scheduler.LambdaLR(
+            optimizer, lambda step: scheduler_fn(step, self.optim_config.d_model, self.optim_config.warmup_steps))
+        return [optimizer], [scheduler]
+
+    def forward(self, src, tgt, src_mask, tgt_mask):
+        """
+        Forward pass through the Hunayn model.
+
+        Args:
+            src (th.Tensor): Source tensor representing token indices.
+            tgt (th.Tensor): Target tensor representing token indices.
+            src_mask (th.Tensor): Mask for the source sequence.
+            tgt_mask (th.Tensor): Mask for the target sequence.
+
+        Returns:
+            th.Tensor: Model output.
+
+        Example:
+            ```python
+            output = trainer.forward(src_tensor, tgt_tensor, src_mask, tgt_mask)
+            ```
+        """
+        return self.model(src, tgt, src_mask, tgt_mask)
+
+    def training_step(self, batch, batch_idx) -> Dict[str, th.Tensor]:
+        """
+        Training step for the Hunayn model.
+
+        Args:
+            batch (Dict): Batch of training data.
+            batch_idx (int): Batch index.
+
+        Returns:
+            Dict[str, th.Tensor]: Dictionary containing the loss.
+
+        Example:
+            ```python
+            training_step_output = trainer.training_step(batch, batch_idx)
+            ```
+        """
+        src = batch["src"]
+        tgt = batch["tgt"]
+        src_mask = batch["src_mask"]
+        tgt_mask = batch["tgt_mask"]
+        labels = batch["labels"]
+        batch_size, seq_len, _ = src.shape
+
+        output = self(src, tgt, src_mask, tgt_mask)
+
+        loss = self.loss_fn(output.view(batch_size * seq_len, -1), labels.view(-1))
+
+        self.log('train/loss', loss, prog_bar=True)
+
+        return {
+            "loss": loss
+        }
+
+    def validation_step(self, batch, batch_idx) -> Dict[str, th.Tensor]:
+        """
+        Validation step for the Hunayn model.
+
+        Args:
+            batch (Dict): Batch of validation data.
+            batch_idx (int): Batch index.
+
+        Returns:
+            Dict[str, th.Tensor]: Dictionary containing the loss.
+
+        Example:
+            ```python
+            validation_step_output = trainer.validation_step(batch, batch_idx)
+            ```
+        """
+        src = batch["src"]
+        tgt = batch["tgt"]
+        src_mask = batch["src_mask"]
+        tgt_mask = batch["tgt_mask"]
+        labels = batch["labels"]
+        batch_size, seq_len, _ = src.shape
+
+        output = self(src, tgt, src_mask, tgt_mask)
+
+        loss = self.loss_fn(output.view(batch_size * seq_len, -1), labels.view(-1))
+        # add BLEU Score here !
+
+        self.log('valid/loss', loss, prog_bar=True)
+
+        return {
+            "loss": loss
+        }
