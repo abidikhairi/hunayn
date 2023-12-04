@@ -44,3 +44,8 @@ class TransformerConfig(BaseModel):
     tgt_vocab_size: int
     src_padding_idx: int
     tgt_padding_idx: int
+
+
+class TrainerConfig(BaseModel):
+    batch_size: int = 4
+    num_workers: int = 4
