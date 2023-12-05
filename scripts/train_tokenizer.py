@@ -57,22 +57,20 @@ def main(save_path: str, text_file: str):
 
     special_tokens = [bos_token, eos_token, pad_token, unk_token]
 
-    tokenizer.add_special_tokens(special_tokens)
 
-    sos_token_id = tokenizer.token_to_id(bos_token)
-    eos_token_id = tokenizer.token_to_id(eos_token)
-
-    tokenizer.post_processor = processors.TemplateProcessing(
-        single="<bos>:0 $A:0 <eos>:0",
-        special_tokens=[('<bos>', sos_token_id), ('<eos>', eos_token_id)]
-    )
-
-    trainer = trainers.BpeTrainer(
-        initial_alphabet=amino_acids, show_progress=True, vocab_size=50000
-    )
+    trainer = trainers.BpeTrainer(initial_alphabet=amino_acids, show_progress=True,
+                                  special_tokens=special_tokens)
 
     tokenizer.train_from_iterator(text_file_iterator(
         text_file), trainer=trainer, length=20435)
+
+    bos_token_id = tokenizer.token_to_id('<bos>')
+    eos_token_id = tokenizer.token_to_id('<eos>')
+
+    tokenizer.post_processor = processors.TemplateProcessing(
+        single="<bos>:0 $A:0 <eos>:0",
+        special_tokens=[("<bos>", bos_token_id), ("<eos>", eos_token_id)],
+    )
 
     trained_tokenizer = PreTrainedTokenizerFast(
         tokenizer_object=tokenizer, bos_token=bos_token, eos_token=eos_token, unk_token=unk_token, pad_token=pad_token)
