@@ -166,7 +166,7 @@ class HunaynTrainer(pl.LightningModule):
         src_mask = batch["src_mask"]
         tgt_mask = batch["tgt_mask"]
         labels = batch["labels"]
-        batch_size, seq_len, _ = src.shape
+        batch_size, seq_len = src.shape
 
         output = self(src, tgt, src_mask, tgt_mask)
 
@@ -199,7 +199,7 @@ class HunaynTrainer(pl.LightningModule):
         src_mask = batch["src_mask"]
         tgt_mask = batch["tgt_mask"]
         labels = batch["labels"]
-        batch_size, seq_len, _ = src.shape
+        batch_size, seq_len = src.shape
 
         output = self(src, tgt, src_mask, tgt_mask)
 
