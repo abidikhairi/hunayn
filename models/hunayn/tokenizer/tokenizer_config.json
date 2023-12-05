@@ -1,6 +1,6 @@
 {
   "added_tokens_decoder": {
-    "50000": {
+    "0": {
       "content": "<bos>",
       "lstrip": false,
       "normalized": false,
@@ -8,7 +8,7 @@
       "single_word": false,
       "special": true
     },
-    "50001": {
+    "1": {
       "content": "<eos>",
       "lstrip": false,
       "normalized": false,
@@ -16,7 +16,7 @@
       "single_word": false,
       "special": true
     },
-    "50002": {
+    "2": {
       "content": "<pad>",
       "lstrip": false,
       "normalized": false,
@@ -24,7 +24,7 @@
       "single_word": false,
       "special": true
     },
-    "50003": {
+    "3": {
       "content": "<unk>",
       "lstrip": false,
       "normalized": false,
