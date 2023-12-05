@@ -47,5 +47,17 @@ class TransformerConfig(BaseModel):
 
 
 class TrainerConfig(BaseModel):
+    """
+    Configuration class for the training process.
+
+    Attributes:
+        batch_size (int, optional): Batch size for training. Defaults to 4.
+        num_workers (int, optional): Number of workers for data loading. Defaults to 4.
+
+    Example:
+        ```python
+        trainer_config = TrainerConfig(batch_size=8, num_workers=6)
+        ```
+    """
     batch_size: int = 4
     num_workers: int = 4
