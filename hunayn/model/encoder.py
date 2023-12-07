@@ -117,9 +117,9 @@ class TransformerEncoder(nn.Module):
                 Shape: (batch_size, sequence_length, sequence_length).
 
         Returns:
-            th.Tensor: Output tensor after passing through the Transformer Encoder. Shape: (batch_size, sequence_length, d_model).
+            th.Tensor: Output tensor after passing through the Transformer Encoder. 
+                Shape: (batch_size, sequence_length, d_model).
         """
         for layer in self.layers:
             x = layer(x, mask)
-
         return x

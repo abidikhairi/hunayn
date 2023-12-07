@@ -1,11 +1,12 @@
 """Seq2Seq Transformer"""
-from typing import Any, Dict, Union
+from typing import Dict, Union
 import pytorch_lightning as pl
-from pytorch_lightning.utilities.types import STEP_OUTPUT, OptimizerLRScheduler
+from pytorch_lightning.utilities.types import OptimizerLRScheduler
 import torch as th
 from torch import nn
 from torch import optim
 from torch.optim import lr_scheduler
+from torchmetrics.text import Perplexity
 
 from hunayn.config import TransformerConfig, OptimizerConfig
 from hunayn.model import Embedding, TransformerEncoder, TransformerDecoder
@@ -64,7 +65,8 @@ class Hunayn(nn.Module):
                 Shape: (batch_size, tgt_sequence_length).
 
         Returns:
-            th.Tensor: Output tensor after passing through the Transformer model. Shape: (batch_size, tgt_sequence_length, tgt_vocab_size).
+            th.Tensor: Output tensor after passing through the Transformer model. 
+                Shape: (batch_size, tgt_sequence_length, tgt_vocab_size).
         """
         src = self.src_embedding(src)
         tgt = self.tgt_embedding(tgt)
@@ -72,6 +74,7 @@ class Hunayn(nn.Module):
         memory = self.encoder(src, src_mask)
 
         z = self.decoder(tgt, memory, tgt_mask, src_mask)
+
         return self.generator(z)
 
 
@@ -88,10 +91,12 @@ class HunaynTrainer(pl.LightningModule):
         optim_config (OptimizerConfig): Configuration for the optimizer.
         model (Hunayn): Instance of the Hunayn model.
         loss_fn (nn.CrossEntropyLoss): Cross-entropy loss function.
+        perplexity (Perplexity): Perplexity measures how well a language model predicts a text sample.
 
     Example:
         ```python
-        model_config = TransformerConfig(d_model=512, d_ff=2048, nhead=8, dropout=0.1, num_layers=6, src_vocab_size=10000, tgt_vocab_size=10000, src_padding_idx=0, tgt_padding_idx=0)
+        model_config = TransformerConfig(d_model=512, d_ff=2048, nhead=8, dropout=0.1, num_layers=6, 
+            src_vocab_size=10000, tgt_vocab_size=10000, src_padding_idx=0, tgt_padding_idx=0)
         optim_config = OptimizerConfig(learning_rate=0.001, beta1=0.9, beta2=0.988, warmup_steps=2000, d_model=512)
         trainer = HunaynTrainer(model_config=model_config, optim_config=optim_config)
         ```
@@ -106,6 +111,7 @@ class HunaynTrainer(pl.LightningModule):
 
         self.model = Hunayn(self.model_config)
         self.loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
+        self.perplexity = Perplexity(ignore_index=-100)
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         """
@@ -121,7 +127,7 @@ class HunaynTrainer(pl.LightningModule):
         """
         optimizer = optim.AdamW(
             self.parameters(), lr=self.optim_config.learning_rate, betas=(self.optim_config.beta1, self.optim_config.beta2))
-        scheduler = th.optim.lr_scheduler.LambdaLR(
+        scheduler = lr_scheduler.LambdaLR(
             optimizer, lambda step: scheduler_fn(step, self.optim_config.d_model, self.optim_config.warmup_steps))
         return [optimizer], [scheduler]
 
@@ -172,12 +178,13 @@ class HunaynTrainer(pl.LightningModule):
 
         loss = self.loss_fn(output.view(batch_size * seq_len, -1), labels.view(-1))
 
-        self.log('train/loss', loss, prog_bar=True)
+        self.log('train/loss', loss, prog_bar=True, batch_size=batch_size)
 
         return {
             "loss": loss
         }
 
+    @th.no_grad()
     def validation_step(self, batch, batch_idx) -> Dict[str, th.Tensor]:
         """
         Validation step for the Hunayn model.
@@ -204,10 +211,13 @@ class HunaynTrainer(pl.LightningModule):
         output = self(src, tgt, src_mask, tgt_mask)
 
         loss = self.loss_fn(output.view(batch_size * seq_len, -1), labels.view(-1))
-        # add BLEU Score here !
 
-        self.log('valid/loss', loss, prog_bar=True)
+        perplexity = self.perplexity(output, labels)
+
+        self.log('valid/loss', loss, prog_bar=True, batch_size=batch_size)
+        self.log('valid/perplexity', perplexity, prog_bar=True, batch_size=batch_size)
 
         return {
-            "loss": loss
+            "loss": loss,
+            "perplewity": perplexity
         }

@@ -57,9 +57,8 @@ class Seq2Seq(Dataset):
         """
         if th.is_tensor(index):
             index = index.tolist()
-        row = self.frame.iloc[index]
-        sequence = row[0]
-        annotation = row[1]
+        sequence = self.frame.iloc[index, 0]
+        annotation = self.frame.iloc[index, 1]
 
         src = self.src_tknzr(sequence)['input_ids']
         annotation = self.tgt_tknzr(annotation)['input_ids']
@@ -69,7 +68,7 @@ class Seq2Seq(Dataset):
         return src, tgt, labels
 
 
-def collate_fn(examples, src_tknzr: PreTrainedTokenizerFast, tgt_tknzr: PreTrainedTokenizerFast):
+def collate_fn(examples, src_tknzr: PreTrainedTokenizerFast, tgt_tknzr: PreTrainedTokenizerFast, nheads: int):
     """
     Collate function for sequence-to-sequence datasets.
 
@@ -77,6 +76,7 @@ def collate_fn(examples, src_tknzr: PreTrainedTokenizerFast, tgt_tknzr: PreTrain
         examples (List[Tuple[List[int], List[int], List[int]]]): List of tuples containing source sequences, target sequences, and labels.
         src_tknzr (PreTrainedTokenizerFast): Tokenizer for the source sequences.
         tgt_tknzr (PreTrainedTokenizerFast): Tokenizer for the target sequences.
+        nheads (int): Number of attention heads.
 
     Returns:
         Dict[str, th.Tensor]: Dictionary containing collated batches of source sequences, target sequences, source masks, target masks, and labels.
@@ -91,6 +91,7 @@ def collate_fn(examples, src_tknzr: PreTrainedTokenizerFast, tgt_tknzr: PreTrain
     labels = []
 
     pad_token_id = src_tknzr.pad_token_id
+    tgt_pad_token_id = tgt_tknzr.pad_token_id
 
     for s, t, y in examples:
         src.append(th.tensor(s).long())
@@ -98,14 +99,14 @@ def collate_fn(examples, src_tknzr: PreTrainedTokenizerFast, tgt_tknzr: PreTrain
         labels.append(th.tensor(y).long())
 
     src = pad_sequence(src, batch_first=True, padding_value=pad_token_id)
-    tgt = pad_sequence(tgt, batch_first=True, padding_value=-100)
+    tgt = pad_sequence(tgt, batch_first=True, padding_value=tgt_pad_token_id)
     labels = pad_sequence(labels, batch_first=True, padding_value=-100)
 
     if src.shape[1] > tgt.shape[1]:
         padding_rows = src.size(1) - tgt.size(1)
         padding_cols = src.size(0) - tgt.size(0)
 
-        tgt = F.pad(tgt, (0, padding_rows, 0, padding_cols), value=-100)
+        tgt = F.pad(tgt, (0, padding_rows, 0, padding_cols), value=tgt_pad_token_id)
         labels = F.pad(labels, (0, padding_rows, 0, padding_cols), value=-100)
     elif tgt.shape[1] > src.shape[1]:
         padding_rows = tgt.size(1) - src.size(1)
@@ -116,20 +117,27 @@ def collate_fn(examples, src_tknzr: PreTrainedTokenizerFast, tgt_tknzr: PreTrain
 
     src_mask = []
     for x in src:
-        src_mask.append((x != pad_token_id).float())
+        mask = th.zeros((x.size(0), x.size(0))).bool()
+        indices = th.argwhere(x == pad_token_id).flatten()
+        mask[indices] = True
+        src_mask.append(mask)
 
-    src_mask = th.stack(src_mask, dim=0)
+    src_mask = th.stack(src_mask, dim=0) \
+            .repeat(nheads, 1, 1) \
+            .float() # src_mask shape: (N x nheads, seq_len, seq_len)
 
     tgt_mask = []
     for y in tgt:
         attn_shape = (y.size(0), y.size(0))
-        mask = th.triu(th.ones(attn_shape), diagonal=1).float()
-        mask = (mask == 0).float()
-        indices = th.argwhere(y == -100).flatten()
-        mask[indices] = 0
+        mask = th.tril(th.ones(attn_shape)).bool()
+        indices = th.argwhere(y == tgt_pad_token_id).flatten()
+        mask = ~mask
+        mask[indices] = True
         tgt_mask.append(mask)
 
-    tgt_mask = th.stack(tgt_mask, dim=0)
+    tgt_mask = th.stack(tgt_mask, dim=0) \
+            .repeat(nheads, 1, 1) \
+            .float() # tgt_mask shape: (N x nheads, seq_len, seq_len)
 
     return {
         "src": src,
@@ -141,7 +149,7 @@ def collate_fn(examples, src_tknzr: PreTrainedTokenizerFast, tgt_tknzr: PreTrain
 
 
 def get_dataloaders(protein_function_file: str, src_tknzr: PreTrainedTokenizerFast, tgt_tknzr: PreTrainedTokenizerFast,
-                    train_size: float = 0.8, batch_size: int = 4, num_workers: int = 2):
+                    train_size: float = 0.8, batch_size: int = 4, num_workers: int = 2, nheads: int = 4):
     """
     Get DataLoader instances for training and validation from a protein function dataset.
 
@@ -170,9 +178,14 @@ def get_dataloaders(protein_function_file: str, src_tknzr: PreTrainedTokenizerFa
 
     trainset, validset = random_split(dataset, [num_train_samples, num_valid_samples])
 
-    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=num_workers,
-                              collate_fn=lambda examples: collate_fn(examples, src_tknzr, tgt_tknzr))
-    valid_loader = DataLoader(validset, batch_size=batch_size, shuffle=False, num_workers=num_workers,
-                              collate_fn=lambda examples: collate_fn(examples, src_tknzr, tgt_tknzr))
+    # train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=num_workers,
+    #                           collate_fn=lambda examples: collate_fn(examples, src_tknzr, tgt_tknzr, nheads))
+    # valid_loader = DataLoader(validset, batch_size=batch_size, shuffle=False, num_workers=num_workers,
+    #                           collate_fn=lambda examples: collate_fn(examples, src_tknzr, tgt_tknzr, nheads))
+
+    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True,
+                              collate_fn=lambda examples: collate_fn(examples, src_tknzr, tgt_tknzr, nheads))
+    valid_loader = DataLoader(validset, batch_size=batch_size, shuffle=False,
+                              collate_fn=lambda examples: collate_fn(examples, src_tknzr, tgt_tknzr, nheads))
 
     return (train_loader, valid_loader)
