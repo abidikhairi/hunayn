@@ -1,7 +1,6 @@
 ### ML Project Files ###
 logs/
 test.py
-models/
 configs/
 run.sh
 
