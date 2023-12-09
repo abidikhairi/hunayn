@@ -13,8 +13,8 @@ def main():
     src_tknzr = PreTrainedTokenizerFast.from_pretrained('models/hunayn/protein_tokenizer')
     tgt_tknzr = PreTrainedTokenizerFast.from_pretrained('models/hunayn/english_tokenizer')
 
-    df = pd.read_csv('data/dataset.csv', sep='\t')
-    sequence_length = df['Sequence'].map(lambda x: len(x))
+    df = pd.read_csv('data/10_12_23_dataset.csv', sep='\t')
+    sequence_length = df['Sequence'].map(len)
 
     avg_sequence_length = sequence_length.mean()
     min_sequence_length = sequence_length.min()
@@ -24,7 +24,7 @@ def main():
     print(f'Minimum sequence length: {min_sequence_length} residues')
     print(f'Maximum sequence length: {max_sequence_length} residues')
 
-    train_loader, _ = get_dataloaders("data/dataset.csv", src_tknzr, tgt_tknzr,
+    train_loader, _ = get_dataloaders("data/10_12_23_dataset.csv", src_tknzr, tgt_tknzr,
                                                  batch_size=16, num_workers=1, nheads=4)
     src_tokens = []
     tgt_tokens = []

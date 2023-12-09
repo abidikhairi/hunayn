@@ -6,7 +6,7 @@ import torch as th
 from torch import nn
 from torch import optim
 from torch.optim import lr_scheduler
-from torchmetrics.text import Perplexity
+from torchmetrics.text import Perplexity, BLEUScore
 
 from hunayn.config import TransformerConfig, OptimizerConfig
 from hunayn.model import Embedding, TransformerEncoder, TransformerDecoder
@@ -92,6 +92,7 @@ class HunaynTrainer(pl.LightningModule):
         model (Hunayn): Instance of the Hunayn model.
         loss_fn (nn.CrossEntropyLoss): Cross-entropy loss function.
         perplexity (Perplexity): Perplexity measures how well a language model predicts a text sample.
+        bleu (BLEUScore): Calculate BLEU score of machine translated text with one or more references.
 
     Example:
         ```python
@@ -112,6 +113,7 @@ class HunaynTrainer(pl.LightningModule):
         self.model = Hunayn(self.model_config)
         self.loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
         self.perplexity = Perplexity(ignore_index=-100)
+        self.blue = BLEUScore(n_gram=4)
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         """
@@ -177,8 +179,10 @@ class HunaynTrainer(pl.LightningModule):
         output = self(src, tgt, src_mask, tgt_mask)
 
         loss = self.loss_fn(output.view(batch_size * seq_len, -1), labels.view(-1))
+        perplexity = self.perplexity(output, labels)
 
-        self.log('train/loss', loss, prog_bar=True, batch_size=batch_size)
+        self.log('train/loss', loss, prog_bar=True, batch_size=batch_size, sync_dist=True)
+        self.log('train/perplexity', perplexity, prog_bar=True, batch_size=batch_size, sync_dist=True)
 
         return {
             "loss": loss
@@ -214,10 +218,10 @@ class HunaynTrainer(pl.LightningModule):
 
         perplexity = self.perplexity(output, labels)
 
-        self.log('valid/loss', loss, prog_bar=True, batch_size=batch_size)
-        self.log('valid/perplexity', perplexity, prog_bar=True, batch_size=batch_size)
+        self.log('valid/loss', loss, prog_bar=True, batch_size=batch_size, sync_dist=True)
+        self.log('valid/perplexity', perplexity, prog_bar=True, batch_size=batch_size, sync_dist=True)
 
         return {
             "loss": loss,
-            "perplewity": perplexity
+            "perplexity": perplexity
         }
