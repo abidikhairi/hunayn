@@ -178,14 +178,9 @@ def get_dataloaders(protein_function_file: str, src_tknzr: PreTrainedTokenizerFa
 
     trainset, validset = random_split(dataset, [num_train_samples, num_valid_samples])
 
-    # train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=num_workers,
-    #                           collate_fn=lambda examples: collate_fn(examples, src_tknzr, tgt_tknzr, nheads))
-    # valid_loader = DataLoader(validset, batch_size=batch_size, shuffle=False, num_workers=num_workers,
-    #                           collate_fn=lambda examples: collate_fn(examples, src_tknzr, tgt_tknzr, nheads))
-
-    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True,
+    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=num_workers,
                               collate_fn=lambda examples: collate_fn(examples, src_tknzr, tgt_tknzr, nheads))
-    valid_loader = DataLoader(validset, batch_size=batch_size, shuffle=False,
+    valid_loader = DataLoader(validset, batch_size=batch_size, shuffle=False, num_workers=num_workers,
                               collate_fn=lambda examples: collate_fn(examples, src_tknzr, tgt_tknzr, nheads))
 
     return (train_loader, valid_loader)
