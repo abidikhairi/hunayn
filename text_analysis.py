@@ -26,18 +26,14 @@ def main():
 
     train_loader, _ = get_dataloaders("data/10_12_23_dataset.csv", src_tknzr, tgt_tknzr,
                                                  batch_size=16, num_workers=1, nheads=4)
-    src_tokens = []
-    tgt_tokens = []
+    tokens = []
 
     for batch in tqdm(train_loader, total=len(train_loader)):
-        src_tokens.append(batch['src'].shape[1])
-        tgt_tokens.append(batch['tgt'].shape[1])
+        tokens.append(batch['src'].shape[1] + batch['tgt'].shape[1])
 
-    avg_src_tokens_per_batch = th.tensor(src_tokens, dtype=th.float).mean()
-    avg_tgt_tokens_per_batch = th.tensor(tgt_tokens, dtype=th.float).mean()
+    avg_tokens_per_batch = th.tensor(tokens, dtype=th.float).mean()
 
-    print(f'Average src Tokens per Batch: {avg_src_tokens_per_batch}')
-    print(f'Average tgt Tokens per Batch: {avg_tgt_tokens_per_batch}')
+    print(f'Average Tokens per Batch: {avg_tokens_per_batch}')
 
 
 if __name__ == "__main__":
