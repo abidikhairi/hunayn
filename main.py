@@ -1,9 +1,9 @@
 """Main file for training Hunayn"""
 import torch as th
-from pytorch_lightning import Trainer, loggers, callbacks
+from pytorch_lightning import Trainer
 from transformers import PreTrainedTokenizerFast
 
-from hunayn.utils import get_default_parser
+from hunayn.utils import get_default_parser, lightning_callbacks, lightning_loggers
 from hunayn.config import TransformerConfig, OptimizerConfig
 from hunayn.dataset import get_dataloaders
 from hunayn.model import HunaynTrainer
@@ -65,16 +65,15 @@ def main(args):
 
     model = HunaynTrainer(model_config, optim_config)
 
-    csv_logger = loggers.CSVLogger('logs', name="hunayn", version=1)
-    model_checkpoint_callback = callbacks.ModelCheckpoint(
-        dirpath="model/checkpoints", filename="hunayn_v1.ckpt", monitor="train/loss")
+    loggers = lightning_loggers()
+    callbacks = lightning_callbacks()
 
     trainer = Trainer(accelerator="gpu", log_every_n_steps=50, max_epochs=10,
-                      logger=[csv_logger], callbacks=[model_checkpoint_callback], enable_checkpointing=True)
+                      logger=loggers, callbacks=callbacks, enable_checkpointing=True)
 
     trainer.fit(model, train_loader, valid_loader)
 
-    th.save(model.state_dict(), 'model/hunayn/weights_v1.pth')
+    th.save(model.state_dict(), 'models/hunayn/weights_v1.pth')
 
 if __name__ == '__main__':
     parser = get_default_parser()
