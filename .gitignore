@@ -1,6 +1,5 @@
 ### ML Project Files ###
 logs/
-test.py
 configs/
 run.sh
 models/hunayn/checkpoints

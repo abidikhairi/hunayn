@@ -7,6 +7,7 @@ from torch import nn
 from torch import optim
 from torch.optim import lr_scheduler
 from torchmetrics.text import Perplexity, BLEUScore
+from transformers import PreTrainedTokenizerFast
 
 from hunayn.config import TransformerConfig, OptimizerConfig
 from hunayn.model import Embedding, TransformerEncoder, TransformerDecoder
@@ -114,6 +115,9 @@ class HunaynTrainer(pl.LightningModule):
         self.loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
         self.perplexity = Perplexity(ignore_index=-100)
         self.blue = BLEUScore(n_gram=4)
+
+        # Need this in test_step
+        self.tgt_tknzr = PreTrainedTokenizerFast.from_pretrained("models/hunayn/english_tokenizer")
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         """
@@ -225,3 +229,59 @@ class HunaynTrainer(pl.LightningModule):
             "loss": loss,
             "perplexity": perplexity
         }
+
+    @th.no_grad()
+    def test_step(self, batch, batch_idx) -> Dict[str, th.Tensor]:
+        """
+        Test step for the Hunayn model.
+
+        Args:
+            batch (Dict): Batch of test data.
+            batch_idx (int): Batch index.
+
+        Returns:
+            Dict[str, th.Tensor]: Dictionary containing the loss.
+
+        Example:
+            ```python
+            test_step_output = trainer.test_step(batch, batch_idx)
+            ```
+        """
+        src = batch["src"]
+        tgt = batch["tgt"]
+        src_mask = batch["src_mask"]
+        tgt_mask = batch["tgt_mask"]
+        labels = batch["labels"]
+        batch_size, seq_len = src.shape
+
+        output = self(src, tgt, src_mask, tgt_mask)
+
+        loss = self.loss_fn(output.view(batch_size * seq_len, -1), labels.view(-1))
+        perplexity = self.perplexity(output, labels)
+        bleu_score = self._compute_blue_score(output, labels)
+
+        self.log('test/loss', loss, prog_bar=True, batch_size=batch_size, sync_dist=True)
+        self.log('test/perplexity', perplexity, prog_bar=True, batch_size=batch_size, sync_dist=True)
+        self.log('test/blue_score', bleu_score, prog_bar=True, batch_size=batch_size, sync_dist=True)
+
+        return {
+            "loss": loss
+        }
+
+    def _compute_blue_score(self, output: th.Tensor, labels: th.Tensor):
+        output = output.argmax(dim=-1)
+        preds = []
+        tgts = []
+
+        for idx in range(labels.shape[0]):
+            row = labels[idx]
+            out = output[idx]
+
+            indices = th.argwhere(row != -100).flatten().tolist()
+            tgt = row[indices].tolist()
+            pred = out[indices].tolist()
+
+            preds.append(self.tgt_tknzr.decode(pred))
+            tgts.append(self.tgt_tknzr.decode(tgt))
+
+        return self.blue(preds, tgts)

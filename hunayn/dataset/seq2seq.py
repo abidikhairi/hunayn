@@ -147,6 +147,36 @@ def collate_fn(examples, src_tknzr: PreTrainedTokenizerFast, tgt_tknzr: PreTrain
         "labels": labels
     }
 
+def get_test_dataloader(protein_function_file: str, src_tknzr: PreTrainedTokenizerFast, tgt_tknzr: PreTrainedTokenizerFast,
+                        batch_size: int = 4, num_workers: int = 2, nheads: int = 4) -> DataLoader:
+    """
+    Get a DataLoader for the test dataset.
+
+    Args:
+        protein_function_file (str): Path to the protein function file.
+        src_tknzr (PreTrainedTokenizerFast): Source tokenizer for sequences.
+        tgt_tknzr (PreTrainedTokenizerFast): Target tokenizer for function annotations.
+        batch_size (int, optional): Batch size. Defaults to 4.
+        num_workers (int, optional): Number of worker processes for data loading. Defaults to 2.
+        nheads (int, optional): Number of attention heads. Defaults to 4.
+
+    Returns:
+        DataLoader: DataLoader for the test dataset.
+
+    Example:
+        ```python
+        # Example usage:
+        # test_dataloader = get_test_dataloader("test_data.tsv", src_tokenizer, tgt_tokenizer, batch_size=8)
+        # for batch in test_dataloader:
+        #     # Process the batch
+        # ```
+    """
+    dataset = Seq2Seq(protein_function_file, src_tknzr, tgt_tknzr)
+
+    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers,
+                              collate_fn=lambda examples: collate_fn(examples, src_tknzr, tgt_tknzr, nheads))
+
+    return data_loader
 
 def get_dataloaders(protein_function_file: str, src_tknzr: PreTrainedTokenizerFast, tgt_tknzr: PreTrainedTokenizerFast,
                     train_size: float = 0.8, batch_size: int = 4, num_workers: int = 2, nheads: int = 4):
