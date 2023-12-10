@@ -35,7 +35,7 @@ def main():
     for _, row in tqdm(df.iterrows(), total=len(df)):
         functions = list(filter(lambda x: len(x) > 1, sent_tokenize(row.Function)))
         sequence = row.Sequence
-        
+
         for f in functions:
             dataset['Sequence'].append(sequence)
             dataset["FUNCTION"].append(f)
