@@ -48,14 +48,13 @@ def main(save_path: str, text_file: str):
     """
     amino_acids = list("ACDEFGHIKLMNPQRSTVWY")
 
-    bos_token = '<bos>'
-    eos_token = '<eos>'
+    protein_token = '<protein>'
     pad_token = '<pad>'
     unk_token = '<unk>'
 
     tokenizer = Tokenizer(models.BPE(unk_token=unk_token))
 
-    special_tokens = [bos_token, eos_token, pad_token, unk_token]
+    special_tokens = [protein_token, pad_token, unk_token]
 
 
     trainer = trainers.BpeTrainer(initial_alphabet=amino_acids, show_progress=True,
@@ -64,16 +63,16 @@ def main(save_path: str, text_file: str):
     tokenizer.train_from_iterator(text_file_iterator(
         text_file), trainer=trainer, length=20435)
 
-    bos_token_id = tokenizer.token_to_id('<bos>')
-    eos_token_id = tokenizer.token_to_id('<eos>')
+    protein_token_id = tokenizer.token_to_id('<protein>')
 
     tokenizer.post_processor = processors.TemplateProcessing(
-        single="<bos>:0 $A:0 <eos>:0",
-        special_tokens=[("<bos>", bos_token_id), ("<eos>", eos_token_id)],
+        single="<protein>:0 $A:0",
+        special_tokens=[("<protein>", protein_token_id)],
     )
 
     trained_tokenizer = PreTrainedTokenizerFast(
-        tokenizer_object=tokenizer, bos_token=bos_token, eos_token=eos_token, unk_token=unk_token, pad_token=pad_token)
+        tokenizer_object=tokenizer, bos_token=protein_token, protein_token=protein_token,
+        unk_token=unk_token, pad_token=pad_token)
 
     trained_tokenizer.save_pretrained(save_path)
 
