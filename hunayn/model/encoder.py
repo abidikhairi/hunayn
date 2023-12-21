@@ -1,11 +1,18 @@
 """Encoder module"""
 
-from typing import Union
+from typing import  Union, Dict
+from pytorch_lightning.utilities.types import OptimizerLRScheduler
 import torch as th
 from torch import nn
+from torch import optim
+from torch.optim import lr_scheduler
+import pytorch_lightning as pl
 
 from hunayn.model.positional_encoding import PositionalEncoding
+from hunayn.model.embedding import Embedding
+from hunayn.config import EncoderConfig, OptimizerConfig
 from hunayn.utils.cloning import clones
+from hunayn.utils.optimizer import scheduler_fn
 
 
 class EncoderLayer(nn.Module):
@@ -123,3 +130,146 @@ class TransformerEncoder(nn.Module):
         for layer in self.layers:
             x = layer(x, mask)
         return x
+
+
+class HunaynEncoder(pl.LightningModule):
+    """
+    HunaynEncoder is a PyTorch Lightning Module representing the encoder component of the Hunayn model.
+
+    Attributes:
+        model_config (EncoderConfig): Configuration for the transformer model.
+        optim_config (OptimizerConfig): Configuration for the optimizer.
+        encoder (TransformerEncoder): Transformer encoder module.
+        loss_fn (nn.CrossEntropyLoss): Binary Cross-entropy loss function.
+    """
+    def __init__(self, model_config: EncoderConfig, optim_config: OptimizerConfig):
+        """
+        Initializes the HunaynEncoder.
+
+        Args:
+            model_config (TransformerConfig): Configuration for the transformer model.
+            optim_config (OptimizerConfig): Configuration for the optimizer.
+        """
+        super().__init__()
+
+        self.model_config = model_config
+        self.optim_config = optim_config
+
+        self.save_hyperparameters()
+
+        self.embedding = Embedding(
+            model_config.src_vocab_size, model_config.d_model, model_config.src_padding_idx)
+        
+        self.encoder = TransformerEncoder(
+            num_layers=model_config.num_encoder_layers,
+            d_model=model_config.d_model,
+            d_ff=model_config.d_ff,
+            dropout=model_config.dropout,
+            nhead=model_config.nhead
+        )
+
+        self.predictor = nn.Sequential(
+            nn.Linear(model_config.d_model, 1, False),
+            nn.Sigmoid()
+        )
+
+        self.loss_fn = nn.BCELoss()
+
+    def forward(self, x: th.Tensor, mask: th.Tensor):
+        """
+        Forward pass of the HunaynEncoder.
+
+        Args:
+            x (th.Tensor): Input tensor representing token indices.
+            mask (th.Tensor): Mask tensor for masking padded tokens during processing.
+
+        Returns:
+            th.Tensor: Output tensor from the predictor.
+        """
+        x = self.embedding(x)
+        self.encoder(x, mask)
+        return self.predictor(self.encoder(x, mask))
+
+    def configure_optimizers(self) -> OptimizerLRScheduler:
+        """
+        Configure the optimizer and learning rate scheduler.
+
+        Returns:
+            Tuple[Optimizer, LRScheduler]: Optimizer and learning rate scheduler.
+
+        Example:
+            ```python
+            optimizer, scheduler = trainer.configure_optimizers()
+            ```
+        """
+        optimizer = optim.AdamW(
+            self.parameters(), lr=self.optim_config.learning_rate, betas=(self.optim_config.beta1, self.optim_config.beta2))
+        scheduler = lr_scheduler.LambdaLR(
+            optimizer, lambda step: scheduler_fn(step, self.optim_config.d_model, self.optim_config.warmup_steps))
+        return [optimizer], [scheduler]
+    
+
+    def training_step(self, batch, batch_idx) -> Dict[str, th.Tensor]:
+        """
+        Training step for the Hunayn model.
+
+        Args:
+            batch (Dict): Batch of training data.
+            batch_idx (int): Batch index.
+
+        Returns:
+            Dict[str, th.Tensor]: Dictionary containing the loss.
+
+        Example:
+            ```python
+            training_step_output = trainer.training_step(batch, batch_idx)
+            ```
+        """
+        x = batch['x']
+        mask = batch['mask']
+        y = batch['y'].float().view(-1)
+        y_mask = batch['y_mask'].view(-1)
+
+        h = self(x, mask)
+        y_pred = h.view(-1)
+
+        loss = self.loss_fn(y_pred[y_mask], y[y_mask])
+
+        self.log('train/loss', loss, sync_dist=True, prog_bar=True)
+
+        return {
+            'loss': loss
+        }
+
+    @th.no_grad()
+    def validation_step(self, batch, batch_idx) -> Dict[str, th.Tensor]:
+        """
+        Validation step for the Hunayn model.
+
+        Args:
+            batch (Dict): Batch of validation data.
+            batch_idx (int): Batch index.
+
+        Returns:
+            Dict[str, th.Tensor]: Dictionary containing the loss.
+
+        Example:
+            ```python
+            validation_step_output = trainer.validation_step(batch, batch_idx)
+            ```
+        """
+        x = batch['x']
+        mask = batch['mask']
+        y = batch['y'].float().view(-1)
+        y_mask = batch['y_mask'].view(-1)
+
+        h = self(x, mask)
+        y_pred = h.view(-1)
+
+        loss = self.loss_fn(y_pred[y_mask], y[y_mask])
+
+        self.log('valid/loss', loss, sync_dist=True, prog_bar=True)
+
+        return {
+            'loss': loss
+        }

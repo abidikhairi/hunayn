@@ -25,7 +25,7 @@ def lightning_loggers():
     loggers.append(pl_loggers.CSVLogger('logs', name="hunayn", version=1))
 
     if "USE_WANDB" in os.environ:
-        loggers.append(pl_loggers.WandbLogger(project="hunayn", experiment="toasty-dragon-11"))
+        loggers.append(pl_loggers.WandbLogger(project="hunayn"))
 
     return loggers
 
