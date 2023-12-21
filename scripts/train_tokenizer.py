@@ -61,7 +61,7 @@ def main(save_path: str, text_file: str):
                                   special_tokens=special_tokens)
 
     tokenizer.train_from_iterator(text_file_iterator(
-        text_file), trainer=trainer, length=20435)
+        text_file), trainer=trainer, length=66227)
 
     protein_token_id = tokenizer.token_to_id('<protein>')
 

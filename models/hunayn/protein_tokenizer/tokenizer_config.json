@@ -1,7 +1,7 @@
 {
   "added_tokens_decoder": {
     "0": {
-      "content": "<bos>",
+      "content": "<protein>",
       "lstrip": false,
       "normalized": false,
       "rstrip": false,
@@ -9,14 +9,6 @@
       "special": true
     },
     "1": {
-      "content": "<eos>",
-      "lstrip": false,
-      "normalized": false,
-      "rstrip": false,
-      "single_word": false,
-      "special": true
-    },
-    "2": {
       "content": "<pad>",
       "lstrip": false,
       "normalized": false,
@@ -24,7 +16,7 @@
       "single_word": false,
       "special": true
     },
-    "3": {
+    "2": {
       "content": "<unk>",
       "lstrip": false,
       "normalized": false,
@@ -34,11 +26,11 @@
     }
   },
   "additional_special_tokens": [],
-  "bos_token": "<bos>",
+  "bos_token": "<protein>",
   "clean_up_tokenization_spaces": true,
-  "eos_token": "<eos>",
   "model_max_length": 1000000000000000019884624838656,
   "pad_token": "<pad>",
+  "protein_token": "<protein>",
   "tokenizer_class": "PreTrainedTokenizerFast",
   "unk_token": "<unk>"
 }

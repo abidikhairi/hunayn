@@ -1,6 +1,5 @@
 {
-  "bos_token": "<bos>",
-  "eos_token": "<eos>",
+  "bos_token": "<protein>",
   "pad_token": "<pad>",
   "unk_token": "<unk>"
 }
