@@ -229,13 +229,14 @@ class HunaynEncoder(pl.LightningModule):
         mask = batch['mask']
         y = batch['y'].float().view(-1)
         y_mask = batch['y_mask'].view(-1)
+        batch_size = x.size(0)
 
         h = self(x, mask)
         y_pred = h.view(-1)
 
         loss = self.loss_fn(y_pred[y_mask], y[y_mask])
 
-        self.log('train/loss', loss, sync_dist=True, prog_bar=True)
+        self.log('train/loss', loss, sync_dist=True, prog_bar=True, batch_size=batch_size)
 
         return {
             'loss': loss
@@ -262,13 +263,14 @@ class HunaynEncoder(pl.LightningModule):
         mask = batch['mask']
         y = batch['y'].float().view(-1)
         y_mask = batch['y_mask'].view(-1)
+        batch_size = x.size(0)
 
         h = self(x, mask)
         y_pred = h.view(-1)
 
         loss = self.loss_fn(y_pred[y_mask], y[y_mask])
 
-        self.log('valid/loss', loss, sync_dist=True, prog_bar=True)
+        self.log('valid/loss', loss, sync_dist=True, prog_bar=True, batch_size=batch_size)
 
         return {
             'loss': loss

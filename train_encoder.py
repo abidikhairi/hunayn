@@ -51,10 +51,10 @@ def main(args):
     loggers = lightning_loggers()
     callbacks = lightning_callbacks()
 
-    # now = datetime.now().strftime("%Y%m%d")
-    # loggers.append(pl_loggers.WandbLogger(project="hunayn", name=f"encoder-experim-{now}"))
+    now = datetime.now().strftime("%Y%m%d")
+    loggers.append(pl_loggers.WandbLogger(project="hunayn", name=f"encoder-experim-{now}"))
 
-    trainer = Trainer(accelerator="gpu", log_every_n_steps=50, max_epochs=10,
+    trainer = Trainer(accelerator="gpu", log_every_n_steps=50, max_epochs=50,
                       logger=loggers, callbacks=callbacks, enable_checkpointing=True)
 
     trainer.fit(model, train_loader, valid_loader)

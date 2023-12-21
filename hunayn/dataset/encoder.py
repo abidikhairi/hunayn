@@ -173,4 +173,4 @@ def create_dataloader(sequence_file: str, tokenizer: PreTrainedTokenizerFast, nh
 
     def collate_fn_wrapper(x): return collate_fn(x, tokenizer, nheads)
 
-    return DataLoader(dataset=dataset, batch_size=batch_size, collate_fn=collate_fn_wrapper)
+    return DataLoader(dataset=dataset, batch_size=batch_size, collate_fn=collate_fn_wrapper, num_workers=num_workers)
