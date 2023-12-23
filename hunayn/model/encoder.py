@@ -131,10 +131,56 @@ class TransformerEncoder(nn.Module):
             x = layer(x, mask)
         return x
 
-
-class HunaynEncoder(pl.LightningModule):
+class HunaynEncoder(nn.Module):
     """
-    HunaynEncoder is a PyTorch Lightning Module representing the encoder component of the Hunayn model.
+    HunaynEncoder class represents the encoder module of a Transformer-based model.
+
+    Attributes:
+        embedding (nn.Embedding): Embedding layer mapping token IDs to continuous vectors.
+        encoder (TransformerEncoder): Transformer encoder layer for processing sequences.
+
+    Methods:
+        forward(x: th.Tensor, mask: th.Tensor = None) -> th.Tensor:
+            Defines the forward pass of the encoder.
+
+    """
+    def __init__(self, model_config: EncoderConfig) -> None:
+        """
+        Initialize the HunaynEncoder module.
+
+        Args:
+            model_config (EncoderConfig): Configuration object for the encoder.
+        """
+        super().__init__()
+
+        self.embedding = Embedding(
+            model_config.src_vocab_size, model_config.d_model, model_config.src_padding_idx)
+
+        self.encoder = TransformerEncoder(
+            num_layers=model_config.num_encoder_layers,
+            d_model=model_config.d_model,
+            d_ff=model_config.d_ff,
+            dropout=model_config.dropout,
+            nhead=model_config.nhead
+        )
+
+    def forward(self, x: th.Tensor, mask: th.Tensor = None) -> th.Tensor:
+        """
+        Forward pass of the HunaynEncoder.
+
+        Args:
+            x (th.Tensor): Input tensor containing token IDs.
+            mask (th.Tensor, optional): Optional tensor for masking.
+
+        Returns:
+            th.Tensor: Encoded output tensor.
+        """
+        x = self.embedding(x)
+        return self.encoder(x, mask)
+
+class HunaynEncoderTrainer(pl.LightningModule):
+    """
+    HunaynEncoderTrainer is a PyTorch Lightning Module representing the encoder component of the Hunayn model.
 
     Attributes:
         model_config (EncoderConfig): Configuration for the transformer model.
@@ -157,16 +203,7 @@ class HunaynEncoder(pl.LightningModule):
 
         self.save_hyperparameters()
 
-        self.embedding = Embedding(
-            model_config.src_vocab_size, model_config.d_model, model_config.src_padding_idx)
-        
-        self.encoder = TransformerEncoder(
-            num_layers=model_config.num_encoder_layers,
-            d_model=model_config.d_model,
-            d_ff=model_config.d_ff,
-            dropout=model_config.dropout,
-            nhead=model_config.nhead
-        )
+        self.encoder = HunaynEncoder(model_config)
 
         self.predictor = nn.Sequential(
             nn.Linear(model_config.d_model, 1, False),
@@ -175,20 +212,18 @@ class HunaynEncoder(pl.LightningModule):
 
         self.loss_fn = nn.BCELoss()
 
-    def forward(self, x: th.Tensor, mask: th.Tensor):
+    def forward(self, x: th.Tensor, mask: th.Tensor = None):
         """
         Forward pass of the HunaynEncoder.
 
         Args:
             x (th.Tensor): Input tensor representing token indices.
-            mask (th.Tensor): Mask tensor for masking padded tokens during processing.
+            mask (th.Tensor, optional): Mask tensor for masking padded tokens during processing.
 
         Returns:
             th.Tensor: Output tensor from the predictor.
         """
-        x = self.embedding(x)
-        self.encoder(x, mask)
-        return self.predictor(self.encoder(x, mask))
+        return self.encoder(x, mask)
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         """
@@ -207,7 +242,7 @@ class HunaynEncoder(pl.LightningModule):
         scheduler = lr_scheduler.LambdaLR(
             optimizer, lambda step: scheduler_fn(step, self.optim_config.d_model, self.optim_config.warmup_steps))
         return [optimizer], [scheduler]
-    
+
 
     def training_step(self, batch, batch_idx) -> Dict[str, th.Tensor]:
         """
@@ -231,7 +266,7 @@ class HunaynEncoder(pl.LightningModule):
         y_mask = batch['y_mask'].view(-1)
         batch_size = x.size(0)
 
-        h = self(x, mask)
+        h = self.predictor(self(x, mask))
         y_pred = h.view(-1)
 
         loss = self.loss_fn(y_pred[y_mask], y[y_mask])
@@ -265,7 +300,7 @@ class HunaynEncoder(pl.LightningModule):
         y_mask = batch['y_mask'].view(-1)
         batch_size = x.size(0)
 
-        h = self(x, mask)
+        h = self.predictor(self(x, mask))
         y_pred = h.view(-1)
 
         loss = self.loss_fn(y_pred[y_mask], y[y_mask])

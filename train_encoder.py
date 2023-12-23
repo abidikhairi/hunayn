@@ -8,7 +8,7 @@ from transformers import PreTrainedTokenizerFast
 from hunayn.utils import lightning_callbacks, lightning_loggers
 from hunayn.config import OptimizerConfig, EncoderConfig
 from hunayn.dataset import create_encoder_dataloader
-from hunayn.model import HunaynEncoder
+from hunayn.model import HunaynEncoderTrainer as HunaynEncoder
 
 
 def main(args):
@@ -54,7 +54,7 @@ def main(args):
     now = datetime.now().strftime("%Y%m%d")
     loggers.append(pl_loggers.WandbLogger(project="hunayn", name=f"encoder-experim-{now}"))
 
-    trainer = Trainer(accelerator="gpu", log_every_n_steps=50, max_epochs=50,
+    trainer = Trainer(accelerator="gpu", log_every_n_steps=50, max_epochs=10,
                       logger=loggers, callbacks=callbacks, enable_checkpointing=True)
 
     trainer.fit(model, train_loader, valid_loader)
