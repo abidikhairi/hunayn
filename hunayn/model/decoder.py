@@ -4,7 +4,6 @@ from typing import Union
 import torch as th
 from torch import nn
 
-from hunayn.model.positional_encoding import PositionalEncoding
 from hunayn.utils.cloning import clones
 
 
@@ -19,7 +18,6 @@ class DecoderLayer(nn.Module):
         dropout (float): Dropout probability applied to various parts of the model.
 
     Attributes:
-        pe (PositionalEncoding): Positional encoding module for introducing positional information.
         self_attn (nn.MultiheadAttention): Multi-head self-attention mechanism.
         cross_attn (nn.MultiheadAttention): Multi-head attention mechanism to attend to the encoder's output.
         feedforward (nn.Sequential): Feedforward neural network module.
@@ -37,7 +35,6 @@ class DecoderLayer(nn.Module):
     def __init__(self, d_model: int, d_ff: int, nhead: int, dropout: float) -> None:
         super().__init__()
 
-        self.pe = PositionalEncoding(d_model=d_model)
         self.self_attn = nn.MultiheadAttention(
             embed_dim=d_model,
             num_heads=nhead,
@@ -54,7 +51,7 @@ class DecoderLayer(nn.Module):
 
         self.feedforward = nn.Sequential(
             nn.Linear(d_model, d_ff),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(d_ff, d_model)
         )
 
@@ -80,9 +77,9 @@ class DecoderLayer(nn.Module):
             th.Tensor: Output tensor after passing through the DecoderLayer.
                 Shape: (batch_size, tgt_sequence_length, d_model).
         """
-        query_pe, key_pe = self.pe(tgt, tgt)
-        q = tgt + query_pe
-        k = tgt + key_pe
+        q = tgt
+        k = tgt
+        v = tgt
 
         v = self.attn_norm(tgt)
         q = self.attn_norm(q)

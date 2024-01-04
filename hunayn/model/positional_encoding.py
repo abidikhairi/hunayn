@@ -1,48 +1,52 @@
 """Positional encoding module"""
-from typing import Tuple
+import math
 import torch as th
 from torch import nn
-from xformers.components.positional_embedding import RotaryEmbedding
 
 
 class PositionalEncoding(nn.Module):
     """
-    Positional Encoding for Transformer Models.
-
-    Args:
-        d_model (int): The dimension of the model's hidden states.
-
-    This class implements positional encoding for Transformer models. It applies positional information
-    to the input tensors `q` and `k`.
+    PositionalEncoding module adds positional encodings to the input embeddings.
+    These encodings are added to give the model information about the position of tokens within a sequence.
 
     Attributes:
-        positional_encoding (RotaryEmbedding): The positional encoding module used for adding positional information.
+        dropout (nn.Dropout): Dropout layer for regularization.
+        pe (th.Tensor): Positional encodings.
+
+    Methods:
+        forward(x: th.Tensor) -> th.Tensor:
+            Adds positional encodings to the input tensor and returns the result.
     """
-
-    def __init__(self, d_model: int) -> None:
+    def __init__(self, d_model, dropout=0.1, max_len=5000):
         """
-        Initializes a new PositionalEncoding instance.
+        Initializes the PositionalEncoding module.
 
         Args:
-            d_model (int): The dimension of the model's hidden states.
+            d_model (int): Dimensionality of the model.
+            dropout (float, optional): Dropout rate. Default is 0.1.
+            max_len (int, optional): Maximum length of the input sequence. Default is 5000.
         """
-        super().__init__()
-        self.positional_encoding = RotaryEmbedding(dim_model=d_model)
+        super(PositionalEncoding, self).__init__()
+        self.dropout = nn.Dropout(p=dropout)
 
-    def forward(self, q: th.Tensor, k: th.Tensor) -> Tuple[th.Tensor, th.Tensor]:
+        pe = th.zeros(max_len, d_model)
+        position = th.arange(0, max_len, dtype=th.float).unsqueeze(1)
+        div_term = th.exp(th.arange(0, d_model, 2).float() * (-math.log(35000.0) / d_model))
+        pe[:, 0::2] = th.sin(position * div_term)
+        pe[:, 1::2] = th.cos(position * div_term)
+        pe = pe.unsqueeze(0).transpose(0, 1)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
         """
-        Applies positional encoding to the input tensors.
+        Forward pass of the PositionalEncoding module.
 
         Args:
-            q (th.Tensor): The query tensor.
-            k (th.Tensor): The key tensor.
+            x (th.Tensor): Input tensor.
 
         Returns:
-            Tuple[th.Tensor, th.Tensor]: The query and key tensors with positional encoding applied.
+            th.Tensor: Output tensor with positional encodings added.
         """
-        q, k = self.positional_encoding(q, k)
+        x = x + self.pe[:x.size(0), :]
 
-        q = q.squeeze(0)
-        k = k.squeeze(0)
-
-        return q, k
+        return self.dropout(x)
