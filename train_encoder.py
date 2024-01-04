@@ -54,12 +54,12 @@ def main(args):
     now = datetime.now().strftime("%Y%m%d")
     loggers.append(pl_loggers.WandbLogger(project="hunayn", name=f"encoder-experim-{now}"))
 
-    trainer = Trainer(accelerator="gpu", log_every_n_steps=50, max_epochs=10,
+    trainer = Trainer(accelerator="gpu", log_every_n_steps=50, max_epochs=1,
                       logger=loggers, callbacks=callbacks, enable_checkpointing=True)
 
     trainer.fit(model, train_loader, valid_loader)
 
-    th.save(model.encoder.state_dict(), 'models/hunayn/encoder_weights_v1.pth')
+    th.save(model.encoder.state_dict(), 'models/hunayn/checkpoints/encoder_weights_v1.pth')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

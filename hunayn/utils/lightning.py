@@ -48,6 +48,6 @@ def lightning_callbacks():
     """
     callbacks = []
     callbacks.append(pl_callbacks.ModelCheckpoint(
-        dirpath="models/checkpoints", filename="hunayn_v1", monitor="valid/loss"))
+        dirpath="models/hunayn/checkpoints", filename="hunayn_encoder_v1", monitor="valid/loss"))
 
     return callbacks
