@@ -53,7 +53,7 @@ class EncoderLayer(nn.Module):
 
         self.feedforward = nn.Sequential(
             nn.Linear(d_model, d_ff),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(d_ff, d_model)
         )
 
@@ -68,12 +68,12 @@ class EncoderLayer(nn.Module):
             x (th.Tensor): The input tensor.
             mask (th.Tensor): The input mask.
         """
-        query_pe, key_pe = self.pe(x, x)
-        q = x + query_pe
-        k = x + key_pe
+        q = x
+        k = x
+        v= x
 
         # pre-normalization
-        v = self.attn_norm(x)
+        v = self.attn_norm(v)
         q = self.attn_norm(q)
         k = self.attn_norm(k)
 
@@ -308,5 +308,6 @@ class HunaynEncoderTrainer(pl.LightningModule):
         self.log('valid/loss', loss, sync_dist=True, prog_bar=True, batch_size=batch_size)
 
         return {
-            'loss': loss
+            'loss': loss,
+            "valid/loss": loss
         }
