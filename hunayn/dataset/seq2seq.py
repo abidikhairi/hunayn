@@ -57,8 +57,8 @@ class Seq2Seq(Dataset):
         """
         if th.is_tensor(index):
             index = index.tolist()
-        sequence = self.frame.iloc[index, 0]
-        annotation = self.frame.iloc[index, 1]
+        sequence = self.frame.iloc[index, 1]
+        annotation = self.frame.iloc[index, 2]
 
         src = self.src_tknzr(sequence)['input_ids']
         annotation = self.tgt_tknzr(annotation)['input_ids']

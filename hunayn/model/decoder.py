@@ -5,7 +5,8 @@ import torch as th
 from torch import nn
 
 from hunayn.utils.cloning import clones
-
+from hunayn.config.model import DecoderConfig
+from hunayn.model.embedding import Embedding
 
 class DecoderLayer(nn.Module):
     """
@@ -148,3 +149,23 @@ class TransformerDecoder(nn.Module):
             tgt = layer(tgt, src, tgt_mask, src_mask)
 
         return tgt
+
+
+class HunaynDecoder(nn.Module):
+    def __init__(self, decoder_config: DecoderConfig) -> None:
+        super().__init__()
+
+        self.embedding = Embedding(vocab_size=decoder_config.tgt_vocab_size, d_model=decoder_config.d_model,
+                                   padding_idx=decoder_config.tgt_padding_idx)
+
+        self.decoder = TransformerDecoder(num_layers=decoder_config.num_decoder_layers, d_model=decoder_config.d_model,
+                                          d_ff=decoder_config.d_ff, nhead=decoder_config.nhead, dropout=decoder_config.dropout)
+
+    def forward(self, tgt: th.Tensor, z: th.Tensor,
+                tgt_mask: Union[th.Tensor, th.BoolTensor] = None,
+                src_mask: Union[th.Tensor, th.BoolTensor] = None):
+
+        x = self.embedding(tgt)
+        x = self.decoder(x, z, tgt_mask, src_mask)
+        
+        return x
