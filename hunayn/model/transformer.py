@@ -117,7 +117,7 @@ class HunaynTrainer(pl.LightningModule):
         self.blue = BLEUScore(n_gram=4)
 
         # Need this in test_step
-        self.tgt_tknzr = PreTrainedTokenizerFast.from_pretrained("models/hunayn/english_tokenizer")
+        # self.tgt_tknzr = PreTrainedTokenizerFast.from_pretrained("models/hunayn/english_tokenizer")
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         """
@@ -230,45 +230,45 @@ class HunaynTrainer(pl.LightningModule):
             "perplexity": perplexity
         }
 
-    @th.no_grad()
-    def test_step(self, batch, batch_idx) -> Dict[str, th.Tensor]:
-        """
-        Test step for the Hunayn model.
+    # @th.no_grad()
+    # def test_step(self, batch, batch_idx) -> Dict[str, th.Tensor]:
+    #     """
+    #     Test step for the Hunayn model.
 
-        Args:
-            batch (Dict): Batch of test data.
-            batch_idx (int): Batch index.
+    #     Args:
+    #         batch (Dict): Batch of test data.
+    #         batch_idx (int): Batch index.
 
-        Returns:
-            Dict[str, th.Tensor]: Dictionary containing the loss.
+    #     Returns:
+    #         Dict[str, th.Tensor]: Dictionary containing the loss.
 
-        Example:
-            ```python
-            test_step_output = trainer.test_step(batch, batch_idx)
-            ```
-        """
-        src = batch["src"]
-        tgt = batch["tgt"]
-        src_mask = batch["src_mask"]
-        tgt_mask = batch["tgt_mask"]
-        labels = batch["labels"]
-        batch_size, seq_len = src.shape
+    #     Example:
+    #         ```python
+    #         test_step_output = trainer.test_step(batch, batch_idx)
+    #         ```
+    #     """
+    #     src = batch["src"]
+    #     tgt = batch["tgt"]
+    #     src_mask = batch["src_mask"]
+    #     tgt_mask = batch["tgt_mask"]
+    #     labels = batch["labels"]
+    #     batch_size, seq_len = src.shape
 
-        output = self(src, tgt, src_mask, tgt_mask)
+    #     output = self(src, tgt, src_mask, tgt_mask)
 
-        loss = self.loss_fn(output.view(batch_size * seq_len, -1), labels.view(-1))
-        perplexity = self.perplexity(output, labels)
-        bleu_score = self._compute_blue_score(output, labels)
+    #     loss = self.loss_fn(output.view(batch_size * seq_len, -1), labels.view(-1))
+    #     perplexity = self.perplexity(output, labels)
+    #     bleu_score = self._compute_blue_score(output, labels)
 
-        self.log('test/loss', loss, prog_bar=True, batch_size=batch_size, sync_dist=True)
-        self.log('test/perplexity', perplexity, prog_bar=True, batch_size=batch_size, sync_dist=True)
-        self.log('test/blue_score', bleu_score, prog_bar=True, batch_size=batch_size, sync_dist=True)
+    #     self.log('test/loss', loss, prog_bar=True, batch_size=batch_size, sync_dist=True)
+    #     self.log('test/perplexity', perplexity, prog_bar=True, batch_size=batch_size, sync_dist=True)
+    #     self.log('test/blue_score', bleu_score, prog_bar=True, batch_size=batch_size, sync_dist=True)
 
-        return {
-            "loss": loss
-        }
+    #     return {
+    #         "loss": loss
+    #     }
 
-    def _compute_blue_score(self, output: th.Tensor, labels: th.Tensor):
+    # def _compute_blue_score(self, output: th.Tensor, labels: th.Tensor):
         output = output.argmax(dim=-1)
         preds = []
         tgts = []
